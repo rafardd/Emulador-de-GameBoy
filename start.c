@@ -1,7 +1,28 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "instructions.c"
+#include <stdbool.h>
 
+#define FLAG_Z (1 << 7) // If the result of the last operation = 0 , z = 1
+#define FLAG_N (1 << 6) // If the last operation was a subtraction, n = 1
+#define FLAG_H (1 << 5) // If the operation resulted in a half carry
+#define FLAG_C (1 << 4) // If the operation resulted in a Carry out
+
+//  Functions made specifically for the F register
+void set_flag(uint8_t flag)
+{
+    registers.F |= flag;
+}
+void clear_flag(uint8_t flag)
+{
+    registers.F &= ~flag;
+}
+bool is_flag_set(uint8_t flag)
+{
+    return (registers.F & flag) != 0;
+}
+
+struct register_map registers;
 struct register_map
 {
     uint8_t A; // Accumulator
@@ -41,7 +62,6 @@ uint8_t RAM[0x10000];
 
 void write_memory(uint16_t address, uint8_t val)
 {
-    // Simplified: For now, we allow writing anywhere in RAM
     RAM[address] = val;
 }
 
@@ -80,6 +100,26 @@ int op_cost(uint8_t opcode)
         return 1;
     case 0x05:
         return 1;
+    case 0x06:
+        return 2;
+    case 0x07:
+        return 1;
+    case 0x08:
+        return 5;
+    case 0x09:
+        return 2;
+    case 0x0A:
+        return 2;
+    case 0x0B:
+        return 2;
+    case 0x0C:
+        return 1;
+    case 0x0D:
+        return 1;
+    case 0x0E:
+        return 2;
+    case 0x0F:
+        return 1;
     default:
         return 1;
     }
@@ -105,7 +145,6 @@ int main(int argc, char *argv[])
     fclose(rom);
 
     // Starting all the registers, like the boot sequence in gameboy
-    struct register_map registers;
     registers.PC = 0x0100; // Initializing the PC register where the game starts
     registers.SP = 0xFFFE; // top of the stack pile
     registers.A = 0x01;
@@ -121,7 +160,7 @@ int main(int argc, char *argv[])
     printf("Starting emulation...\n");
     while (1)
     {
-        uint8_t opcode = RAM[registers.PC];
+        uint8_t opcode = RAM[registers.PC++];
         int op_cycle_cost = op_cost(opcode);
         frame_cycles += op_cycle_cost;
 
@@ -130,25 +169,150 @@ int main(int argc, char *argv[])
         case 0x00: // NOP
             nop(&registers.PC);
             break;
-        case 0x01:          // LD BC, d16
-            registers.PC++; // Skip opcode
+        case 0x01: // LD BC, d16
             registers.BC = read_next16(&registers.PC);
             break;
         case 0x02: // LD (BC), A
             write_memory(registers.BC, registers.A);
-            registers.PC++;
             break;
         case 0x03: // INC BC
             registers.BC += 1;
-            registers.PC++;
             break;
         case 0x04: // INC B
+            uint8_t old_value = registers.B;
             registers.B += 1;
-            registers.PC++;
+            if (registers.B == 0)
+            {
+                set_flag(FLAG_Z);
+            }
+            else
+            {
+                clear_flag(FLAG_Z);
+            }
+            clear_flag(FLAG_N);
+            if ((old_value & 0x0F) == 0x0F)
+            {
+                set_flag(FLAG_H);
+            }
+            else
+            {
+                clear_flag(FLAG_H);
+            }
             break;
         case 0x05: // DEC B
+            uint8_t old_value = registers.B;
             registers.B -= 1;
-            registers.PC++;
+            if (registers.B = 0)
+            {
+                set_flag(FLAG_Z);
+            }
+            else
+            {
+                clear_flag(FLAG_Z);
+            }
+            set_flag(FLAG_N);
+            if ((old_value & 0x0F) == 0x00)
+            {
+                set_flag(FLAG_H);
+            }
+            else
+            {
+                clear_flag(FLAG_H);
+            }
+            break;
+        case 0x06:
+            ld_reg_8bit(&registers.B, read_next8(&registers.PC));
+            break;
+        case 0x07:
+            registers.A = registers.A << 1;
+            uint8_t A7 = registers.A & 1;
+            if (A7)
+            {
+                set_flag(FLAG_C);
+            }
+            else
+            {
+                clear_flag(FLAG_C);
+            }
+            break;
+        case 0x08:
+            uint16_t address = read_next16(&registers.PC);
+            write_memory(address, registers.SP & 0xFF);
+            write_memory(address + 1, (registers.SP >> 8) & 0xFF);
+            break;
+        case 0x09:
+            uint16_t old_value = registers.HL;
+            ld_reg_16bit(&registers.HL, registers.BC + registers.HL);
+            clear_flag(FLAG_N);
+            if (check_h_add(old_value, old_value + registers.BC))
+            {
+                set_flag(FLAG_H);
+            }
+            else
+            {
+                clear_flag(FLAG_H);
+            }
+            if (check_carry(old_value, registers.BC))
+            {
+                set_flag(FLAG_C);
+            }
+            else
+            {
+                clear_flag(FLAG_C);
+            }
+            break;
+        case 0x0A:
+            registers.A = read_memory(registers.BC);
+            break;
+        case 0x0B:
+            registers.BC -= 1;
+            break;
+        case 0x0C:
+            registers.C += 1;
+            clear_flag(FLAG_Z);
+            clear_flag(FLAG_N);
+            if ((registers.C - 1 & 0x0F) == 0x0F)
+            {
+                set_flag(FLAG_H);
+            }
+            else
+            {
+                clear_flag(FLAG_H);
+            }
+            break;
+        case 0x0D:
+            registers.C -= 1;
+            if (registers.C == 0)
+            {
+                set_flag(FLAG_Z);
+            }
+            else
+            {
+                clear_flag(FLAG_Z);
+            }
+            set_flag(FLAG_N);
+            if ((registers.C + 1 & 0x0F) == 0x0F)
+            {
+                set_flag(FLAG_H);
+            }
+            else
+            {
+                clear_flag(FLAG_H);
+            }
+            break;
+        case 0x0E:
+            ld_reg_8bit(&registers.C, read_next8(&registers.PC));
+            break;
+        case 0x0F:
+            registers.A = registers.A >> 1;
+            if (registers.A & 128)
+            {
+                set_flag(FLAG_C);
+            }
+            else
+            {
+                clear_flag(FLAG_C);
+            }
             break;
 
         default:
