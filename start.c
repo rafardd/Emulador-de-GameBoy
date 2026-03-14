@@ -59,6 +59,12 @@ struct register_map
     uint16_t PC; // Program Counter
 };
 
+struct CPU_status CPU;
+struct CPU_status
+{
+    bool is_stopped;
+};
+
 uint8_t RAM[0x10000];
 
 void write_memory(uint16_t address, uint8_t val)
@@ -274,6 +280,41 @@ int main(int argc, char *argv[])
                 clear_flag(FLAG_C);
             }
             break;
+        case 0x10: // STOP n8
+            registers.PC += 1;
+            CPU.is_stopped = true;
+            break;
+        case 0x11: // LD DE, n16
+            registers.DE = read_next16(&registers.PC);
+            break;
+        case 0x12: // LD [DE], A
+            RAM[registers.DE] = registers.A;
+            break;
+        case 0x13: // INC DE
+            registers.DE += 1;
+            break;
+        case 0x14: // INC D 
+            old_value = registers.D;
+            registers.D += 1;
+            if (registers.D == 0)
+            {
+                set_flag(FLAG_Z);
+            }
+            else
+            {
+                clear_flag(FLAG_Z);
+            }
+            clear_flag(FLAG_N);
+            if ((old_value & 0x0F) == 0x0F)
+            {
+                set_flag(FLAG_H);
+            }
+            else
+            {
+                clear_flag(FLAG_H);
+            }
+            break;
+            
 
         default:
             printf("Unknown opcode: 0x%02X at PC: 0x%04X\n", opcode, registers.PC);
