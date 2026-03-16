@@ -288,12 +288,12 @@ int main(int argc, char *argv[])
             registers.DE = read_next16(&registers.PC);
             break;
         case 0x12: // LD [DE], A
-            RAM[registers.DE] = registers.A;
+            write_memory(registers.DE, registers.A);
             break;
         case 0x13: // INC DE
             registers.DE += 1;
             break;
-        case 0x14: // INC D 
+        case 0x14: // INC D
             old_value = registers.D;
             registers.D += 1;
             if (registers.D == 0)
@@ -314,7 +314,6 @@ int main(int argc, char *argv[])
                 clear_flag(FLAG_H);
             }
             break;
-            
 
         default:
             printf("Unknown opcode: 0x%02X at PC: 0x%04X\n", opcode, registers.PC);
