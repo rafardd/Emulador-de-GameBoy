@@ -45,7 +45,7 @@ struct CPU_status
     bool is_stopped;
     bool interrupts_enabled;
     bool halt;
-    uint8_t joypad_state; // Bits 0-3: DIrections, Bits 4-7: Buttons
+    uint8_t joypad_state; // Bits 0-3: Directions, Bits 4-7: Buttons
 };
 
 // Simple MCB implementation

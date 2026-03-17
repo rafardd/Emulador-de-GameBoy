@@ -28,7 +28,7 @@ uint8_t read_memory(uint16_t address)
     // Joypad (0xFF00)
     if (address == 0xFF00)
     {
-        uint8_t res = RAM[0xFF00] | 0xCF; // Bits 6-7 always 1, 0-3 inicially 1
+        uint8_t res = RAM[0xFF00] | 0xCF; // Bits 6-7 always 1, 0-3 initially 1 (not pressed)
         if (!(res & 0x10))
         { // Select Directions (Bit 4 is 0)
             res &= ~(CPU.joypad_state & 0x0F);
@@ -86,7 +86,7 @@ void write_memory(uint16_t address, uint8_t val)
             for (int i = 0; i < 0xA0; i++)
                 write_memory(0xFE00 + i, read_memory(src + i));
         }
-        // No 0xFF00, only bits 4 and 5 are writable
+        // In 0xFF00, only bits 4 and 5 are writable by the game
         if (address == 0xFF00)
             RAM[0xFF00] = (val & 0x30);
         else
