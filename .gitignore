@@ -2,3 +2,5 @@
 *.out
 # Ignore compiled objects 
 *.o
+# Ignore rom
+*.gb

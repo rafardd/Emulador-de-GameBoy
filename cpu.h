@@ -1,6 +1,7 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -11,73 +12,72 @@
 
 struct register_map
 {
-    uint8_t A;
-    uint8_t F;
+    uint8_t A, F;
     union
     {
         struct
         {
-            uint8_t C;
-            uint8_t B;
-        } bc_reg;
+            uint8_t C, B;
+        };
         uint16_t BC;
     };
     union
     {
         struct
         {
-            uint8_t E;
-            uint8_t D;
-        } de_reg;
+            uint8_t E, D;
+        };
         uint16_t DE;
     };
     union
     {
         struct
         {
-            uint8_t L;
-            uint8_t H;
-        } hl_reg;
+            uint8_t L, H;
+        };
         uint16_t HL;
     };
-    uint16_t SP;
-    uint16_t PC;
+    uint16_t SP, PC;
 };
-
-// Add these macros to keep the old syntax working (registers.B, registers.C, etc.)
-#define B bc_reg.B
-#define C bc_reg.C
-#define D de_reg.D
-#define E de_reg.E
-#define H hl_reg.H
-#define L hl_reg.L
 
 struct CPU_status
 {
     bool is_stopped;
     bool interrupts_enabled;
+    bool halt;
+    uint8_t joypad_state; // Bits 0-3: DIrections, Bits 4-7: Buttons
+};
+
+// Simple MCB implementation
+struct MBC_status
+{
+    uint8_t rom_bank;
+    uint8_t ram_bank;
+    bool ram_enabled;
+    uint8_t *rom_data;
+    uint8_t *ext_ram;
+    size_t rom_size;
 };
 
 extern struct register_map registers;
 extern struct CPU_status CPU;
-extern uint8_t RAM[0x10000];
+extern struct MBC_status MBC;
+extern uint8_t RAM[0x10000]; // WRAM, HRAM and registers
 
-// Memory/IO helpers
+// Memory
 void write_memory(uint16_t address, uint8_t val);
 uint8_t read_memory(uint16_t address);
 uint8_t read_next8(uint16_t *PC);
 uint16_t read_next16(uint16_t *PC);
 
-// Flag helpers
+// Helpers
 void set_flag(uint8_t flag);
 void clear_flag(uint8_t flag);
 bool is_flag_set(uint8_t flag);
-
-// Stack helpers
 void push_stack(uint16_t val);
 uint16_t pop_stack();
 
-// ALU helpers
+// ALU
 void alu_add(uint8_t val);
 void alu_adc(uint8_t val);
 void alu_sub(uint8_t val);
