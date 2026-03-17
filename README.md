@@ -19,7 +19,7 @@ O funcionamento da memória foi implementado utilizando arrays com tamanhos de b
 O programa deve ser executado através da linha de comando, informando o caminho do arquivo da ROM que deseja jogar:
 
 ```bash
-./emulator "caminho/para/a/rom.gb"
+./gb_emulator "caminho/para/a/rom.gb"
 ```
 
 _(Nota: Certifique-se de que o emulador foi compilado previamente usando GCC e a biblioteca SDL2)._
