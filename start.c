@@ -3,17 +3,15 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <SDL2/SDL.h>
-
 #include "cpu.h"
-#include "instructions.c"
-#include "cycle_cost.c"
-#include "ppu.c"
+#include "ppu.h"
+#include "cycle_cost.h"
 
-struct register_map registers;
-struct CPU_status CPU;
-struct MBC_status MBC;
-uint8_t RAM[0x10000];
-uint32_t pixel_buffer[WIDTH * HEIGHT];
+
+register_map_t registers;
+cpu_status_t cpu;
+mbc_status_t mbc;
+uint8_t ram[0x10000];
 int frame_cycles = 0;
 int timer_counter = 0;
 int divider_counter = 0;
@@ -25,17 +23,17 @@ void update_timers(int cycles)
     if (divider_counter >= 256)
     {
         divider_counter -= 256;
-        RAM[0xFF04]++;
+        ram[0xFF04]++;
     }
 
     // Timer Enable (Bit 2 of TAC 0xFF07)
-    if (RAM[0xFF07] & 0x04)
+    if (ram[0xFF07] & 0x04)
     {
         timer_counter += cycles;
 
         // Timer frequency (Bits 0-1 of TAC)
         int freq = 1024; // Default freq (00)
-        switch (RAM[0xFF07] & 0x03)
+        switch (ram[0xFF07] & 0x03)
         {
         case 0:
             freq = 1024;
@@ -55,15 +53,15 @@ void update_timers(int cycles)
         {
             timer_counter -= freq;
 
-            if (RAM[0xFF05] == 0xFF)
+            if (ram[0xFF05] == 0xFF)
             {
                 // Overflow: reset TIMA to TMA and request Timer Interrupt
-                RAM[0xFF05] = RAM[0xFF06];
-                RAM[0xFF0F] |= 0x04; // Timer Interrupt (Bit 2)
+                ram[0xFF05] = ram[0xFF06];
+                ram[0xFF0F] |= 0x04; // Timer Interrupt (Bit 2)
             }
             else
             {
-                RAM[0xFF05]++;
+                ram[0xFF05]++;
             }
         }
     }
@@ -86,18 +84,18 @@ void init_hw()
     registers.DE = 0x00D8;
     registers.HL = 0x014D;
 
-    RAM[0xFF05] = 0x00;
-    RAM[0xFF06] = 0x00;
-    RAM[0xFF07] = 0x00;
-    RAM[0xFF40] = 0x91;
-    RAM[0xFF47] = 0xFC;
-    RAM[0xFF00] = 0xCF;
+    ram[0xFF05] = 0x00;
+    ram[0xFF06] = 0x00;
+    ram[0xFF07] = 0x00;
+    ram[0xFF40] = 0x91;
+    ram[0xFF47] = 0xFC;
+    ram[0xFF00] = 0xCF;
 
-    MBC.rom_bank = 1;
-    MBC.ram_bank = 0;
-    MBC.ram_enabled = false;
-    MBC.ext_ram = calloc(1, 0x8000);
-    CPU.joypad_state = 0x00;
+    mbc.rom_bank = 1;
+    mbc.ram_bank = 0;
+    mbc.ram_enabled = false;
+    mbc.ext_ram = calloc(1, 0x8000);
+    cpu.joypad_state = 0x00;
 }
 
 void handle_joypad(SDL_Event *e)
@@ -134,29 +132,29 @@ void handle_joypad(SDL_Event *e)
     if (bit != 0xFF)
     {
         if (down)
-            CPU.joypad_state |= (1 << bit);
+            cpu.joypad_state |= (1 << bit);
         else
-            CPU.joypad_state &= ~(1 << bit);
+            cpu.joypad_state &= ~(1 << bit);
         // Interrupt joypad (Bit 4 IF)
         if (down)
-            RAM[0xFF0F] |= 0x10;
+            ram[0xFF0F] |= 0x10;
     }
 }
 
 void handle_interrupts()
 {
-    uint8_t active = RAM[0xFF0F] & RAM[0xFFFF];
+    uint8_t active = ram[0xFF0F] & ram[0xFFFF];
     if (active)
     {
-        CPU.halt = false;
-        if (CPU.interrupts_enabled)
+        cpu.halt = false;
+        if (cpu.interrupts_enabled)
         {
             for (int i = 0; i < 5; i++)
             {
                 if (active & (1 << i))
                 {
-                    CPU.interrupts_enabled = false;
-                    RAM[0xFF0F] &= ~(1 << i);
+                    cpu.interrupts_enabled = false;
+                    ram[0xFF0F] &= ~(1 << i);
                     push_stack(registers.PC);
                     registers.PC = 0x40 + (i * 8);
                     tick(20);
@@ -176,10 +174,10 @@ int main(int argc, char *argv[])
     if (!f)
         return printf("Error opening ROM\n");
     fseek(f, 0, SEEK_END);
-    MBC.rom_size = ftell(f);
+    mbc.rom_size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    MBC.rom_data = malloc(MBC.rom_size);
-    fread(MBC.rom_data, 1, MBC.rom_size, f);
+    mbc.rom_data = malloc(mbc.rom_size);
+    fread(mbc.rom_data, 1, mbc.rom_size, f);
     fclose(f);
 
     init_hw();
@@ -208,7 +206,7 @@ int main(int argc, char *argv[])
 
         handle_interrupts();
 
-        if (!CPU.halt)
+        if (!cpu.halt)
         {
             if (instr_count < 50000)
             {
@@ -306,7 +304,7 @@ int main(int argc, char *argv[])
             }
             case 0x10:
                 registers.PC++;
-                CPU.is_stopped = true;
+                cpu.is_stopped = true;
                 break;
             case 0x11:
                 registers.DE = read_next16(&registers.PC);
@@ -585,7 +583,7 @@ int main(int argc, char *argv[])
                 break;
             }
             case 0x76:
-                CPU.halt = true;
+                cpu.halt = true;
                 break;
             case 0x80 ... 0x87:
             {
@@ -850,7 +848,7 @@ int main(int argc, char *argv[])
                 break;
             case 0xD9:
                 registers.PC = pop_stack();
-                CPU.interrupts_enabled = true;
+                cpu.interrupts_enabled = true;
                 break;
             case 0xDA:
             {
@@ -942,7 +940,7 @@ int main(int argc, char *argv[])
                 registers.A = read_memory(0xFF00 + registers.C);
                 break;
             case 0xF3:
-                CPU.interrupts_enabled = false;
+                cpu.interrupts_enabled = false;
                 break;
             case 0xF5:
                 push_stack((registers.A << 8) | registers.F);
@@ -977,7 +975,7 @@ int main(int argc, char *argv[])
                 registers.A = read_memory(read_next16(&registers.PC));
                 break;
             case 0xFB:
-                CPU.interrupts_enabled = true;
+                cpu.interrupts_enabled = true;
                 break;
             case 0xFE:
                 alu_cp(read_next8(&registers.PC));
@@ -1006,8 +1004,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    free(MBC.rom_data);
-    free(MBC.ext_ram);
+    free(mbc.rom_data);
+    free(mbc.ext_ram);
     SDL_DestroyTexture(textura);
     SDL_DestroyRenderer(renderizador);
     SDL_DestroyWindow(window);

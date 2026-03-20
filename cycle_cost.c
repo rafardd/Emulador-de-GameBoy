@@ -1,3 +1,4 @@
+#include "cycle_cost.h"
 #include "cpu.h"
 
 // Cycle costs in T-cycles (4MHz)
@@ -40,5 +41,11 @@ const uint8_t OP_CYCLE_COSTS_CB[256] = {
     8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8  // 0xF0 - 0xFF
 };
 
-int op_cost(uint8_t opcode) { return OP_CYCLE_COSTS[opcode]; }
-int op_cost_cb(uint8_t opcode_cb) { return OP_CYCLE_COSTS_CB[opcode_cb]; }
+int op_cost(uint8_t opcode)
+{
+    return OP_CYCLE_COSTS[opcode];
+}
+int op_cost_cb(uint8_t opcode_cb)
+{
+    return OP_CYCLE_COSTS_CB[opcode_cb];
+}
