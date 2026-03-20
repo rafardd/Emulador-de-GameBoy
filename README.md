@@ -16,13 +16,17 @@ O funcionamento da memória foi implementado utilizando arrays com tamanhos de b
 
 ## Como usar
 
+O programa precisa ser compilado usando o Makefile fornecido no repositório.
+
+```bash
+make
+```
+
 O programa deve ser executado através da linha de comando, informando o caminho do arquivo da ROM que deseja jogar:
 
 ```bash
 ./gb_emulator "caminho/para/a/rom.gb"
 ```
-
-_(Nota: Certifique-se de que o emulador foi compilado previamente usando GCC e a biblioteca SDL2)._
 
 ## Ferramentas e Referências
 
