@@ -1,4 +1,20 @@
-# Ignore executables
-*.out
-# Ignore compiled objects 
+# Compilação
 *.o
+*.out
+gb_emulator
+
+# Logs (podem crescer muito)
+*.log
+trace.log
+
+# Arquivos de Dados / ROMs (não devem ir para o git por direitos autorais e tamanho)
+*.gb
+*.gbc
+
+# IDEs e Sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*~
+*.swp

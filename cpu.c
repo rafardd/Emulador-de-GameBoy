@@ -8,75 +8,75 @@ bool is_flag_set(uint8_t flag) { return (registers.F & flag) != 0; }
 uint8_t read_memory(uint16_t address)
 {
     if (address < 0x4000)
-        return MBC.rom_data[address];
+        return mbc.rom_data[address];
     if (address < 0x8000)
     {
-        uint32_t real_addr = (uint32_t)(address - 0x4000) + (uint32_t)(MBC.rom_bank * 0x4000);
-        if (real_addr >= MBC.rom_size)
+        uint32_t real_addr = (uint32_t)(address - 0x4000) + (uint32_t)(mbc.rom_bank * 0x4000);
+        if (real_addr >= mbc.rom_size)
             return 0xFF;
-        return MBC.rom_data[real_addr];
+        return mbc.rom_data[real_addr];
     }
     if (address >= 0xA000 && address < 0xC000)
     {
-        if (MBC.ram_enabled)
-            return MBC.ext_ram[(address - 0xA000) + (MBC.ram_bank * 0x2000)];
+        if (mbc.ram_enabled)
+            return mbc.ext_ram[(address - 0xA000) + (mbc.ram_bank * 0x2000)];
         return 0xFF;
     }
     if (address >= 0xE000 && address < 0xFE00)
-        return RAM[address - 0x2000];
+        return ram[address - 0x2000];
 
     // Joypad (0xFF00)
     if (address == 0xFF00)
     {
-        uint8_t res = RAM[0xFF00] | 0xCF; // Bits 6-7 always 1, 0-3 initially 1 (not pressed)
+        uint8_t res = ram[0xFF00] | 0xCF; // Bits 6-7 always 1, 0-3 initially 1 (not pressed)
         if (!(res & 0x10))
         { // Select Directions (Bit 4 is 0)
-            res &= ~(CPU.joypad_state & 0x0F);
+            res &= ~(cpu.joypad_state & 0x0F);
         }
         if (!(res & 0x20))
         { // Select buttons (Bit 5 is 0)
-            res &= ~((CPU.joypad_state >> 4) & 0x0F);
+            res &= ~((cpu.joypad_state >> 4) & 0x0F);
         }
         return res;
     }
 
-    return RAM[address];
+    return ram[address];
 }
 
 void write_memory(uint16_t address, uint8_t val)
 {
     if (address < 0x2000)
     {
-        MBC.ram_enabled = ((val & 0x0F) == 0x0A);
+        mbc.ram_enabled = ((val & 0x0F) == 0x0A);
     }
     else if (address < 0x4000)
     {
-        MBC.rom_bank = val & 0x7F;
-        if (MBC.rom_bank == 0)
-            MBC.rom_bank = 1;
+        mbc.rom_bank = val & 0x7F;
+        if (mbc.rom_bank == 0)
+            mbc.rom_bank = 1;
     }
     else if (address < 0x6000)
     {
-        MBC.ram_bank = val & 0x03;
+        mbc.ram_bank = val & 0x03;
     }
     else if (address >= 0x8000 && address < 0xA000)
     {
-        RAM[address] = val;
+        ram[address] = val;
     }
     else if (address >= 0xA000 && address < 0xC000)
     {
-        if (MBC.ram_enabled)
-            MBC.ext_ram[(address - 0xA000) + (MBC.ram_bank * 0x2000)] = val;
+        if (mbc.ram_enabled)
+            mbc.ext_ram[(address - 0xA000) + (mbc.ram_bank * 0x2000)] = val;
     }
     else if (address >= 0xC000 && address < 0xFE00)
     {
-        RAM[address] = val;
+        ram[address] = val;
         if (address < 0xDE00)
-            RAM[address + 0x2000] = val;
+            ram[address + 0x2000] = val;
     }
     else if (address >= 0xFE00 && address < 0xFEA0)
     {
-        RAM[address] = val;
+        ram[address] = val;
     }
     else if (address >= 0xFF00)
     {
@@ -88,17 +88,17 @@ void write_memory(uint16_t address, uint8_t val)
         }
         // In 0xFF00, only bits 4 and 5 are writable by the game
         if (address == 0xFF00)
-            RAM[0xFF00] = (val & 0x30);
+            ram[0xFF00] = (val & 0x30);
         else
-            RAM[address] = val;
+            ram[address] = val;
     }
 }
 
-uint8_t read_next8(uint16_t *PC) { return read_memory((*PC)++); }
-uint16_t read_next16(uint16_t *PC)
+uint8_t read_next8(uint16_t *pc) { return read_memory((*pc)++); }
+uint16_t read_next16(uint16_t *pc)
 {
-    uint16_t lsb = read_next8(PC);
-    uint16_t msb = read_next8(PC);
+    uint16_t lsb = read_next8(pc);
+    uint16_t msb = read_next8(pc);
     return (msb << 8) | lsb;
 }
 
@@ -109,7 +109,7 @@ void push_stack(uint16_t val)
     write_memory(registers.SP + 1, (val >> 8) & 0xFF);
 }
 
-uint16_t pop_stack()
+uint16_t pop_stack(void)
 {
     uint16_t lsb = read_memory(registers.SP);
     uint16_t msb = read_memory(registers.SP + 1);
