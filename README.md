@@ -25,7 +25,7 @@ O programa deve ser executado através da linha de comando, informando o caminho
 _(Nota: Certifique-se de que o emulador foi compilado previamente usando GCC e a biblioteca SDL2)._
 
 ## Ferramentas e Referências
-
+  
 - **Documentação Oficial (Pan Docs):** [gbdev.io/pandocs](https://gbdev.io/pandocs/)
 - **Documentação RGBDS:** [rgbds.gbdev.io/docs](https://rgbds.gbdev.io/docs/)
 - **Biblioteca de Vídeo/Input:** [SDL2](https://wiki.libsdl.org/SDL2/)
